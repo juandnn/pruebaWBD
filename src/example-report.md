@@ -304,3 +304,223 @@ function graficaTotalesDiscovery(data_total, edadesSeleccionadas) {
 graficaTotalesDiscovery(data_total, edadesSeleccionadas)
 
 ```
+
+
+# II. heatmap calendario
+
+
+
+```js 
+const edadesSeleccionadas2 = view(
+  Inputs.select(
+    ["Niños 4-8 años", "Amas de casa 18+", "Personas 4+"],
+    {
+      label: "¿Qué edad quieres mostrar?",
+      value: "Niños 4-8 años"
+    }
+  )
+);
+edadesSeleccionadas2;
+
+```
+
+```js 
+const metricaCalendario = view(
+  Inputs.radio(["Share", "Rating en Miles"], {
+    label: "¿Qué métrica quieres ver?",
+    value: "Share"
+  })
+);
+metricaCalendario;
+
+```
+
+```js 
+
+function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metricaCalendario) {
+  const edadSeleccionada = Array.isArray(edadesSeleccionadas2)
+    ? edadesSeleccionadas2[0]
+    : edadesSeleccionadas2;
+  const anios = [2018, 2019];
+
+  const datos = data_panorama
+    .filter(d => d.Canal === "Discovery Kids")
+    .map(d => {
+      const fecha = new Date(d.Fecha + "T00:00:00");
+
+      return {
+        año: +d.Año,
+        fecha,
+        mes: +d.Mes,
+        diaSemana: fecha.getDay(),
+        semana: d3.utcWeek.count(d3.utcYear(fecha), fecha),
+        edad: edadSeleccionada,
+        valor: +d[`${metricaCalendario} ${edadSeleccionada}`]
+      };
+    })
+    .filter(d => anios.includes(d.año))
+    .filter(d => !isNaN(d.valor));
+
+  const cellSize = 14;
+  const yearWidth = cellSize * 54;
+  const yearHeight = cellSize * 7 + 55;
+  const margin = { top: 70, right: 30, bottom: 55, left: 45 };
+  const yearGap = 44;
+
+  const width = margin.left + margin.right + yearWidth;
+  const height = margin.top + margin.bottom + yearHeight * anios.length + yearGap * (anios.length - 1);
+  const extent = d3.extent(datos, d => d.valor);
+  const colorDomain = extent[0] === extent[1]
+    ? [extent[0] - 1, extent[1] + 1]
+    : extent;
+
+  const color = d3.scaleSequential()
+    .domain(colorDomain)
+    .interpolator(d3.interpolateRdYlGn);
+
+  const wrapper = document.createElement("div");
+
+  const svg = d3.create("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("viewBox", [0, 0, width, height])
+    .style("max-width", "100%")
+    .style("height", "auto")
+    .style("font-family", "sans-serif");
+
+  const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+  svg.append("text")
+    .attr("x", margin.left)
+    .attr("y", 26)
+    .attr("font-size", 16)
+    .attr("font-weight", "bold")
+    .attr("fill", "white")
+    .text(edadSeleccionada);
+
+  anios.forEach((año, yearIndex) => {
+    const xBase = margin.left;
+    const yBase = margin.top + yearIndex * (yearHeight + yearGap);
+
+    svg.append("text")
+      .attr("x", xBase)
+      .attr("y", yBase - 5)
+      .attr("font-size", 14)
+      .attr("font-weight", "bold")
+      .attr("fill", "white")
+      .text(año);
+
+    svg.append("g")
+      .selectAll("text")
+      .data(dias)
+      .join("text")
+      .attr("x", xBase - 8)
+      .attr("y", (_, i) => yBase + i * cellSize + cellSize * 0.75)
+      .attr("text-anchor", "end")
+      .attr("font-size", 10)
+      .attr("fill", "white")
+      .text(d => d);
+
+    const datosAnioEdad = datos.filter(d => d.año === año && d.edad === edadSeleccionada);
+
+    svg.append("g")
+      .selectAll("rect")
+      .data(datosAnioEdad)
+      .join("rect")
+      .attr("x", d => xBase + d.semana * cellSize)
+      .attr("y", d => yBase + d.diaSemana * cellSize)
+      .attr("width", cellSize - 1)
+      .attr("height", cellSize - 1)
+      .attr("fill", d => color(d.valor))
+      .attr("stroke", "white")
+      .style("cursor", "pointer")
+      .on("click", function(event, d) {
+        infoPanel.innerHTML = `
+          <strong>Discovery Kids</strong>
+          <span>${d.fecha.toISOString().slice(0, 10)} | ${d.edad}</span>
+          <span>${metricaCalendario}: ${d3.format(",.2f")(d.valor)}</span>
+        `;
+      });
+
+    const primerDiaMes = d3.utcMonths(
+      new Date(Date.UTC(año, 0, 1)),
+      new Date(Date.UTC(año + 1, 0, 1))
+    );
+
+    svg.append("g")
+      .selectAll("text")
+      .data(primerDiaMes)
+      .join("text")
+      .attr("x", d => {
+        const fecha = new Date(d);
+        const semana = d3.utcWeek.count(d3.utcYear(fecha), fecha);
+        return xBase + semana * cellSize;
+      })
+      .attr("y", yBase - 8)
+      .attr("font-size", 10)
+      .attr("fill", "white")
+      .text((_, i) => meses[i]);
+  });
+
+  const legendWidth = 220;
+  const legendHeight = 10;
+  const legendId = `legend-gradient-${Math.random().toString(36).slice(2)}`;
+
+  const defs = svg.append("defs");
+
+  const gradient = defs.append("linearGradient")
+    .attr("id", legendId);
+
+  gradient.selectAll("stop")
+    .data(d3.range(0, 1.01, 0.1))
+    .join("stop")
+    .attr("offset", d => `${d * 100}%`)
+    .attr("stop-color", d => color(
+      color.domain()[0] + d * (color.domain()[1] - color.domain()[0])
+    ));
+
+  const legendX = margin.left;
+  const legendY = height - 25;
+
+  svg.append("rect")
+    .attr("x", legendX)
+    .attr("y", legendY)
+    .attr("width", legendWidth)
+    .attr("height", legendHeight)
+    .attr("fill", `url(#${legendId})`);
+
+  const legendScale = d3.scaleLinear()
+    .domain(color.domain())
+    .range([legendX, legendX + legendWidth]);
+
+  svg.append("g")
+    .attr("transform", `translate(0,${legendY + legendHeight})`)
+    .call(d3.axisBottom(legendScale).ticks(5).tickFormat(d3.format(".2f")))
+    .call(g => g.selectAll("text").attr("fill", "white"))
+    .call(g => g.selectAll("line, path").attr("stroke", "white"));
+
+  const infoPanel = document.createElement("div");
+  infoPanel.style.marginTop = "12px";
+  infoPanel.style.padding = "12px 14px";
+  infoPanel.style.border = "1px solid rgba(255,255,255,0.28)";
+  infoPanel.style.borderRadius = "6px";
+  infoPanel.style.color = "white";
+  infoPanel.style.fontFamily = "sans-serif";
+  infoPanel.style.fontSize = "13px";
+  infoPanel.style.display = "grid";
+  infoPanel.style.gap = "4px";
+  infoPanel.textContent = "Haz click en un día del calendario para ver el detalle.";
+
+  wrapper.append(svg.node(), infoPanel);
+  return wrapper;
+}
+```
+
+```js 
+
+calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metricaCalendario)
+```
+
+
+# III. Gráfica 3: Mosaic plot por grupo de edad. 
