@@ -1,0 +1,14 @@
+{
+  "Canal": "Nombre del canal de televisión",
+  "Franja Horaria": "Rango de horas de transmisión",
+  "Año": "Año de la transmisión",
+  "Fecha": "Fecha específica de la transmisión",
+  "Día de la semana": "Día de la semana de la transmisión",
+  "Mes": "Mes de la transmisión",
+  "Share Niños 4-8 años": "Porcentaje de participación entre televidentes niños de 4-8 años",
+  "Rating en Miles Niños 4-8 años": "Número en miles de niños de 4-8 años conectados al canal",
+  "Share Amas de casa 18+": "Porcentaje de participación entre amas de casa de 18+ años",
+  "Rating en Miles Amas de casa 18+": "Número en miles de amas de casa de 18+ años conectadas al canal",
+  "Share Personas 4+": "Porcentaje de participación entre personas de 4+ años",
+  "Rating en Miles Personas 4+": "Número en miles de personas de 4+ años conectadas al canal"
+}
