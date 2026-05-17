@@ -745,3 +745,6 @@ mosaicPlotCanales(
   agrupacionMosaic
 )
 ```
+
+
+# IV. Conclusión 
