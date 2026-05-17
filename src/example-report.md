@@ -313,12 +313,30 @@ metricaCalendario;
 ```
 
 ```js 
+const aniosCalendario = view(
+  Inputs.checkbox(["2018", "2019"], {
+    label: "¿Qué años quieres mostrar?",
+    value: [2018, 2019]
+  })
+);
+aniosCalendario;
 
-function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metricaCalendario) {
+```
+
+```js 
+
+function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metricaCalendario, aniosCalendario) {
   const edadSeleccionada = Array.isArray(edadesSeleccionadas2)
     ? edadesSeleccionadas2[0]
     : edadesSeleccionadas2;
-  const anios = [2018, 2019];
+  const anios = (Array.isArray(aniosCalendario) ? aniosCalendario : [aniosCalendario])
+    .map(Number)
+    .filter(año => año === 2018 || año === 2019)
+    .sort();
+
+  if (anios.length === 0) {
+    return htl.html`<p style="color:white">Selecciona al menos un año para ver el calendario.</p>`;
+  }
 
   const datos = data_panorama
     .filter(d => d.Canal === "Discovery Kids")
@@ -332,7 +350,8 @@ function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metrica
         diaSemana: fecha.getDay(),
         semana: d3.utcWeek.count(d3.utcYear(fecha), fecha),
         edad: edadSeleccionada,
-        valor: +d[`${metricaCalendario} ${edadSeleccionada}`]
+        valor: +d[`${metricaCalendario} ${edadSeleccionada}`],
+        share: +d[`Share ${edadSeleccionada}`]
       };
     })
     .filter(d => anios.includes(d.año))
@@ -366,6 +385,7 @@ function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metrica
     .style("font-family", "sans-serif");
 
   const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const diasLargos = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
   const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
   svg.append("text")
@@ -413,10 +433,16 @@ function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metrica
       .attr("stroke", "white")
       .style("cursor", "pointer")
       .on("click", function(event, d) {
+        const detalleMetrica = metricaCalendario === "Share"
+          ? ""
+          : `<span>${metricaCalendario}: ${d3.format(",.2f")(d.valor)}</span>`;
+
         infoPanel.innerHTML = `
           <strong>Discovery Kids</strong>
           <span>${d.fecha.toISOString().slice(0, 10)} | ${d.edad}</span>
-          <span>${metricaCalendario}: ${d3.format(",.2f")(d.valor)}</span>
+          <span>Día de la semana: ${diasLargos[d.diaSemana]}</span>
+          ${detalleMetrica}
+          <span>Share: ${d3.format(",.2f")(d.share)}%</span>
         `;
       });
 
@@ -496,7 +522,7 @@ function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metrica
 
 ```js 
 
-calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metricaCalendario)
+calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metricaCalendario, aniosCalendario)
 ```
 
 
