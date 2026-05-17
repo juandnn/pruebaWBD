@@ -338,11 +338,11 @@ function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metrica
     .filter(d => anios.includes(d.año))
     .filter(d => !isNaN(d.valor));
 
-  const cellSize = 14;
+  const cellSize = 25;
   const yearWidth = cellSize * 54;
   const yearHeight = cellSize * 7 + 55;
-  const margin = { top: 70, right: 30, bottom: 55, left: 45 };
-  const yearGap = 44;
+  const margin = { top: 70, right: 30, bottom: 20, left: 45 };
+  const yearGap = 20;
 
   const width = margin.left + margin.right + yearWidth;
   const height = margin.top + margin.bottom + yearHeight * anios.length + yearGap * (anios.length - 1);
@@ -382,10 +382,10 @@ function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metrica
 
     svg.append("text")
       .attr("x", xBase)
-      .attr("y", yBase - 5)
+      .attr("y", yBase - 20)
       .attr("font-size", 14)
       .attr("font-weight", "bold")
-      .attr("fill", "white")
+      .attr("fill", "#D3D3D3")
       .text(año);
 
     svg.append("g")
@@ -396,7 +396,7 @@ function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metrica
       .attr("y", (_, i) => yBase + i * cellSize + cellSize * 0.75)
       .attr("text-anchor", "end")
       .attr("font-size", 10)
-      .attr("fill", "white")
+      .attr("fill", "gray")
       .text(d => d);
 
     const datosAnioEdad = datos.filter(d => d.año === año && d.edad === edadSeleccionada);
@@ -436,11 +436,11 @@ function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metrica
       })
       .attr("y", yBase - 8)
       .attr("font-size", 10)
-      .attr("fill", "white")
+      .attr("fill", "gray")
       .text((_, i) => meses[i]);
   });
 
-  const legendWidth = 220;
+  const legendWidth = 1330;
   const legendHeight = 10;
   const legendId = `legend-gradient-${Math.random().toString(36).slice(2)}`;
 
@@ -458,7 +458,7 @@ function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metrica
     ));
 
   const legendX = margin.left;
-  const legendY = height - 25;
+  const legendY = height - 40;
 
   svg.append("rect")
     .attr("x", legendX)
