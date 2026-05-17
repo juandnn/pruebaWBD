@@ -53,6 +53,8 @@ function graficaTotalesDiscovery(data_total, edadesSeleccionadas) {
     }))
   );
 
+  if (datos.length === 0) return htl.html`<p style="color:white">Selecciona al menos una categoría.</p>`;
+
   const width = 1500;
   const baseHeight = 260;
   const perCategory = 55;
@@ -73,9 +75,14 @@ function graficaTotalesDiscovery(data_total, edadesSeleccionadas) {
     .domain(d3.extent(datos, d => d.fecha))
     .range([margin.left, width - margin.right]);
 
+  const yExtent = d3.extent(datos, d => d.valor);
+  const yPadding = yExtent[0] === yExtent[1]
+    ? Math.max(1, Math.abs(yExtent[1]) * 0.08)
+    : (yExtent[1] - yExtent[0]) * 0.08;
+  const yMax = yExtent[1] + yPadding;
+
   const y = d3.scaleLinear()
-    .domain([0, d3.max(datos, d => d.valor) * 1.08])
-    .nice()
+    .domain([yExtent[0], yMax])
     .range([height - margin.bottom, margin.top]);
 
   const color = d3.scaleOrdinal()
@@ -165,43 +172,6 @@ function graficaTotalesDiscovery(data_total, edadesSeleccionadas) {
     .attr("stroke-linejoin", "round")
     .attr("d", d => line(d[1]));
 
-  // --- Tooltip ---
-  const tooltipG = svg.append("g").style("display", "none").style("pointer-events", "none");
-
-  const tooltipW = 200, tooltipH = 76;
-
-  const tooltipRect = tooltipG.append("rect")
-    .attr("width", tooltipW)
-    .attr("height", tooltipH)
-    .attr("rx", 8)
-    .attr("fill", "#1e293b")
-    .attr("stroke", "rgba(255,255,255,0.12)")
-    .attr("stroke-width", 1);
-
-  // Barra de color superior del tooltip
-  const tooltipBar = tooltipG.append("rect")
-    .attr("width", tooltipW)
-    .attr("height", 4)
-    .attr("rx", 8)
-    .attr("fill", "white");
-
-  const tCategoria = tooltipG.append("text")
-    .attr("x", 12).attr("y", 22)
-    .style("font-size", "11px")
-    .style("font-weight", "600")
-    .style("fill", "white");
-
-  const tFecha = tooltipG.append("text")
-    .attr("x", 12).attr("y", 42)
-    .style("font-size", "11px")
-    .style("fill", "rgba(255,255,255,0.6)");
-
-  const tValor = tooltipG.append("text")
-    .attr("x", 12).attr("y", 62)
-    .style("font-size", "13px")
-    .style("font-weight", "600")
-    .style("fill", "white");
-
   // Línea vertical de referencia
   const refLine = svg.append("line")
     .attr("stroke", "rgba(255,255,255,0.2)")
@@ -240,30 +210,22 @@ function graficaTotalesDiscovery(data_total, edadesSeleccionadas) {
       d3.select(this).attr("r", 8);
 
       const cx = x(d.fecha);
-      const cy = y(d.valor);
-      const flipX = cx + tooltipW + 20 > width - margin.right;
-      const tx = flipX ? cx - tooltipW - 14 : cx + 14;
-      const ty = Math.max(margin.top, Math.min(cy - tooltipH / 2, height - margin.bottom - tooltipH));
 
       refLine
         .style("display", null)
         .attr("x1", cx).attr("x2", cx);
 
-      tooltipG
-        .style("display", null)
-        .attr("transform", `translate(${tx},${ty})`);
-
-      tooltipBar.attr("fill", color(d.categoria));
-
-      tCategoria.text(d.categoria);
-      tFecha.text(`${mesesNombre[d.mes - 1]} ${d.año}`);
-      tValor.text(d3.format(",.2f")(d.valor));
+      infoPanel.style.borderLeftColor = color(d.categoria);
+      infoPanel.innerHTML = `
+        <strong>${d.categoria}</strong>
+        <span>${mesesNombre[d.mes - 1]} ${d.año}</span>
+        <span>Total espectadores: ${d3.format(",.2f")(d.valor)}</span>
+      `;
     });
 
-  // Click fuera para cerrar tooltip
+  // Click fuera para quitar el resaltado del punto
   svg.on("click", function(event) {
     if (!event.target.classList.contains("punto")) {
-      tooltipG.style("display", "none");
       refLine.style("display", "none");
       if (activePoint) {
         d3.select(activePoint).transition().duration(120).attr("r", 5);
@@ -292,7 +254,22 @@ function graficaTotalesDiscovery(data_total, edadesSeleccionadas) {
     .style("fill", "rgba(255,255,255,0.85)")
     .text(d => d);
 
-  return svg.node();
+  const wrapper = document.createElement("div");
+  const infoPanel = document.createElement("div");
+  infoPanel.style.marginTop = "12px";
+  infoPanel.style.padding = "12px 14px";
+  infoPanel.style.border = "1px solid rgba(255,255,255,0.28)";
+  infoPanel.style.borderLeft = "4px solid rgba(255,255,255,0.28)";
+  infoPanel.style.borderRadius = "6px";
+  infoPanel.style.color = "white";
+  infoPanel.style.fontFamily = "sans-serif";
+  infoPanel.style.fontSize = "13px";
+  infoPanel.style.display = "grid";
+  infoPanel.style.gap = "4px";
+  infoPanel.textContent = "Haz click en un punto de la gráfica para ver el detalle.";
+
+  wrapper.append(svg.node(), infoPanel);
+  return wrapper;
 }
 
 
