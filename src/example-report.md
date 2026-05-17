@@ -524,3 +524,221 @@ calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metricaCalendari
 
 
 # III. Gráfica 3: Mosaic plot por grupo de edad. 
+
+```js
+const metricaCalendario2 = view(
+  Inputs.radio(["Share", "Rating en Miles"], {
+    label: "Métrica",
+    value: "Share"
+  })
+);
+```
+
+```js
+const edadesSeleccionadas3 = view(
+  Inputs.radio(["Niños 4-8 años", "Amas de casa 18+", "Personas 4+"], {
+    label: "Segmento de edad",
+    value: "Niños 4-8 años"
+  })
+);
+```
+
+```js
+const agrupacionMosaic = view(
+  Inputs.radio(["semana", "mes", "año", "rango completo"], {
+    label: "Agrupar por",
+    value: "mes"
+  })
+);
+```
+
+```js
+function mosaicPlotCanales(data_panorama, metrica, edad, agrupacion) {
+  const columna = `${metrica} ${edad}`;
+
+  function clavePeriodo(fecha) {
+    const d = new Date(fecha);
+    if (agrupacion === "rango completo") return "2018-2019";
+    if (agrupacion === "día") return d3.timeFormat("%Y-%m-%d")(d);
+    if (agrupacion === "semana") return `${d.getFullYear()}-S${String(d3.timeFormat("%U")(d)).padStart(2,"0")}`;
+    if (agrupacion === "mes") return d3.timeFormat("%Y-%m")(d);
+    return `${d.getFullYear()}`;
+  }
+
+  const datosBase = data_panorama
+    .map(d => ({
+      canal: d.Canal,
+      fecha: new Date(d.Fecha + "T00:00:00"),
+      valor: +d[columna]
+    }))
+    .filter(d => !isNaN(d.valor))
+    .map(d => ({ ...d, periodo: clavePeriodo(d.fecha) }));
+
+  if (datosBase.length === 0) return htl.html`<p style="color:white">Sin datos disponibles.</p>`;
+
+  // Promedios por (periodo, canal)
+  const datosAgrupados = Array.from(
+    d3.rollup(datosBase, v => d3.mean(v, d => d.valor), d => d.periodo, d => d.canal),
+    ([periodo, canales]) => Array.from(canales, ([canal, valor]) => ({ periodo, canal, valor }))
+  ).flat();
+
+  const periodos = Array.from(new Set(datosAgrupados.map(d => d.periodo))).sort();
+  const canales  = Array.from(new Set(datosAgrupados.map(d => d.canal))).sort();
+
+  // Suma total por periodo (determina el ancho de cada columna)
+  const totalPorPeriodo = new Map(
+    periodos.map(p => [p, d3.sum(datosAgrupados.filter(d => d.periodo === p), d => d.valor)])
+  );
+  const totalGlobal = d3.sum(Array.from(totalPorPeriodo.values()));
+
+  const width  = Math.max(2000, periodos.length * 42);
+  const height = 700;
+  const margin = { top: 52, right: 200, bottom: 88, left: 20 };
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const xScale = d3.scaleLinear()
+    .domain([0, totalGlobal])
+    .range([margin.left, margin.left + innerW]);
+
+  const PALETTE = [
+    "#60a5fa","#34d399","#fb923c","#f472b6",
+    "#a78bfa","#facc15","#38bdf8","#4ade80",
+    "#f87171","#e879f9","#fbbf24","#2dd4bf"
+  ];
+  const color = d3.scaleOrdinal().domain(canales).range(PALETTE);
+
+  const svg = d3.create("svg")
+    .attr("width", width).attr("height", height)
+    .attr("viewBox", [0, 0, width, height])
+    .style("max-width", "100%").style("height", "auto")
+    .style("font-family", "sans-serif");
+
+  const wrapper = document.createElement("div");
+
+  // Título
+  svg.append("text")
+    .attr("x", margin.left).attr("y", 30)
+    .attr("fill", "white").attr("font-size", 15).attr("font-weight", "600")
+    .text(`${metrica} · ${edad} · agrupado por ${agrupacion}`);
+
+  // Rectángulos del mosaico
+  let xActual = margin.left;
+
+  periodos.forEach(periodo => {
+    const datosPeriodo = datosAgrupados
+      .filter(d => d.periodo === periodo)
+      .sort((a,b) => d3.descending(a.valor, b.valor));
+
+    const totalPeriodo = totalPorPeriodo.get(periodo);
+    const anchoPeriodo = xScale(totalPeriodo) - xScale(0);
+    let yActual = margin.top;
+
+    datosPeriodo.forEach(d => {
+      const alto = totalPeriodo === 0 ? 0 : innerH * (d.valor / totalPeriodo);
+
+      svg.append("rect")
+        .attr("x", xActual + 0.5).attr("y", yActual + 0.5)
+        .attr("width",  Math.max(0, anchoPeriodo - 1.5))
+        .attr("height", Math.max(0, alto - 1.5))
+        .attr("rx", 2)
+        .attr("fill", color(d.canal))
+        .attr("opacity", 0.88)
+        .style("cursor","pointer")
+        .on("mouseenter", function() { d3.select(this).attr("opacity", 1); })
+        .on("mouseleave", function() { d3.select(this).attr("opacity", 0.88); })
+        .on("click", function(event) {
+          infoPanel.style.borderLeftColor = color(d.canal);
+          infoPanel.innerHTML = `
+            <strong>${d.canal}</strong>
+            <span>Periodo: ${periodo}</span>
+            <span>Promedio: ${d3.format(",.2f")(d.valor)}</span>
+            <span>Participación: ${d3.format(".1%")(d.valor / totalPeriodo)}</span>
+          `;
+          event.stopPropagation();
+        });
+
+      // Etiqueta dentro del rectángulo si hay espacio
+      if (alto > 16 && anchoPeriodo > 40) {
+        svg.append("text")
+          .attr("x", xActual + 5).attr("y", yActual + 13)
+          .attr("fill","white").attr("font-size", Math.min(10, anchoPeriodo / 6))
+          .attr("pointer-events","none")
+          .text(d.canal);
+      }
+
+      yActual += alto;
+    });
+
+    // Etiqueta del periodo (eje X)
+    svg.append("text")
+      .attr("x", xActual + anchoPeriodo / 2)
+      .attr("y", margin.top + innerH + 14)
+      .attr("fill","rgba(255,255,255,0.75)").attr("font-size", 10)
+      .attr("text-anchor","middle")
+      .attr("transform", `rotate(-45,${xActual + anchoPeriodo/2},${margin.top + innerH + 14})`)
+      .text(periodo);
+
+    // Separador vertical
+    svg.append("line")
+      .attr("x1", xActual).attr("x2", xActual)
+      .attr("y1", margin.top).attr("y2", margin.top + innerH)
+      .attr("stroke","rgba(255,255,255,0.12)").attr("stroke-width",1);
+
+    xActual += anchoPeriodo;
+  });
+
+  // Nota de pie
+  svg.append("text")
+    .attr("x", margin.left + innerW/2).attr("y", height - 10)
+    .attr("fill","rgba(255,255,255,0.4)").attr("font-size",10).attr("text-anchor","middle")
+    .text("Ancho de columna ∝ suma de promedios del periodo · Alto de celda ∝ participación del canal");
+
+  // Leyenda
+  const legend = svg.append("g")
+    .attr("transform", `translate(${width - margin.right + 24},${margin.top})`);
+
+  legend.append("text")
+    .attr("y", -14).attr("fill","rgba(255,255,255,0.9)")
+    .attr("font-size",12).attr("font-weight","700")
+    .text("Canal");
+
+  legend.selectAll("g")
+    .data(canales).join("g")
+    .attr("transform", (_,i) => `translate(0,${i*26})`)
+    .call(g => {
+      g.append("rect")
+        .attr("width",13).attr("height",13).attr("rx",3)
+        .attr("fill", d => color(d)).attr("opacity",0.9);
+      g.append("text")
+        .attr("x",20).attr("y",11)
+        .attr("fill","rgba(255,255,255,0.85)").attr("font-size",11)
+        .text(d => d);
+    });
+
+  const infoPanel = document.createElement("div");
+  infoPanel.style.marginTop = "12px";
+  infoPanel.style.padding = "12px 14px";
+  infoPanel.style.border = "1px solid rgba(255,255,255,0.28)";
+  infoPanel.style.borderLeft = "4px solid rgba(255,255,255,0.28)";
+  infoPanel.style.borderRadius = "6px";
+  infoPanel.style.color = "white";
+  infoPanel.style.fontFamily = "sans-serif";
+  infoPanel.style.fontSize = "13px";
+  infoPanel.style.display = "grid";
+  infoPanel.style.gap = "4px";
+  infoPanel.textContent = "Haz click en un canal del mosaico para ver el detalle.";
+
+  wrapper.append(svg.node(), infoPanel);
+  return wrapper;
+}
+```
+
+```js
+mosaicPlotCanales(
+  data_panorama,
+  metricaCalendario2,
+  edadesSeleccionadas3,
+  agrupacionMosaic
+)
+```
