@@ -21,9 +21,9 @@ const data_panorama_mes = await FileAttachment("data/panorama_tv_infantil_agrupa
 const data_total= await FileAttachment("data/totales_discovery_kids.csv").csv();
 
 ```
-# I. Situación general de la televisión colombiana
+# I. ¿Cómo está la situación general de la televisión colombiana?
 
-Selecciona uno o varios segmentos para compararlos en la misma grafica. Al hacer click en cualquier punto se muestra el valor exacto correspondiente.
+La siguiente gráfica muestra la situación general de la televisión colombiana con respecto a la cantidad mensual de espectadores que hay. Esto se calculó dividiendo cada rating diario de Discovery Kids entre su respectivo Share y sumandolo por mes. El resultado fue la siguiente gráfica interactiva en la que se puede seleccionar la categoría para ver su respectivo total de espectadores por mes.
 
 ```js
 const edadesSeleccionadas = view(
@@ -148,6 +148,12 @@ function graficaTotalesDiscovery(data_total, edadesSeleccionadas) {
     .curve(d3.curveCatmullRom.alpha(0.5));
 
   const porCategoria = d3.group(datos, d => d.categoria);
+  const primerValorPorCategoria = new Map(
+    Array.from(porCategoria, ([categoria, valores]) => [
+      categoria,
+      d3.least(valores, d => d.fecha).valor
+    ])
+  );
 
   // Área bajo la línea (sutil)
   const area = d3.area()
@@ -216,10 +222,13 @@ function graficaTotalesDiscovery(data_total, edadesSeleccionadas) {
         .attr("x1", cx).attr("x2", cx);
 
       infoPanel.style.borderLeftColor = color(d.categoria);
+      const totalEspectadores = d.valor * 1000;
+      const delta = (d.valor - primerValorPorCategoria.get(d.categoria)) * 1000;
       infoPanel.innerHTML = `
         <strong>${d.categoria}</strong>
         <span>${mesesNombre[d.mes - 1]} ${d.año}</span>
-        <span>Total espectadores: ${d3.format(",.2f")(d.valor)}</span>
+        <span>Total espectadores: ${d3.format(",.2f")(totalEspectadores)}</span>
+        <span>delta: ${d3.format(",.2f")(delta)}</span>
       `;
     });
 
@@ -282,8 +291,15 @@ graficaTotalesDiscovery(data_total, edadesSeleccionadas)
 
 ```
 
+De esta gráfica se puede encontrar los siguientes hallazgos:
 
-# II. heatmap calendario
+1. En 2019 disminuyó la cantidad de personas viendo televisión.
+2. Total amas de casa +18 tiene un comportamiento similar a total personas +4 en donde Diciembre es el mes donde menos se ve televisión.
+2. Desde 2019 hay menos niños entre 4 y 8 años viendo televisión.
+
+
+
+# II. ¿Cómo es comportamiento diario para Discovery Kids?
 
 
 
@@ -525,8 +541,14 @@ function calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metrica
 calendarioHeatmapDiscovery(data_panorama, edadesSeleccionadas2, metricaCalendario, aniosCalendario)
 ```
 
+De esta gráfica se puede encontrar los siguientes hallazgos:
 
-# III. Gráfica 3: Mosaic plot por grupo de edad. 
+1. El mejor día son los sábados.
+2. En terminos de share, 2019 fue un peor año para la categoría de amas de casa 18+, pero un mejor año para las otras dos.
+3. En terminos de share se empezó bien el 2018 y se terminó bien el 2019.
+4. Se puede ver mejor rating en 2018.
+
+# III. ¿Cuales son los principales competidores de Discovery Kids?
 
 ```js
 const metricaCalendario2 = view(
@@ -746,5 +768,29 @@ mosaicPlotCanales(
 )
 ```
 
+De esta gráfica se puede encontrar los siguientes hallazgos:
 
-# IV. Conclusión 
+1. Discovery kids domina en la categoría de niños entre 4-8 años en donde sus principales competidores son Disney Jr, Cartoon Network y Disney Chanel.
+2. En la categoría de amas de casa +18 Discovery Kids está en el top 3, aunque la audiencia está más polarizada. Aquí se pueden ver que los principales competidores son: TNT, STAR Channel, Disney Channel, Disney Jr, Discovery Channel y en menor medida Cartoon Network, Señal Colombia y Disney XD.
+3. En personas +4 a Discovery Kids le va bien, aunque es una categoría también muy polarizada. Sus principales competidores son Cartoon Network, Disney Channel, TNT, STAR Channel, Disney Jr y en menor medida Disney XD.
+
+# IV. Entonces ¿cuál es la situación actual de Discovery Kids?
+
+1. Para la categoría de entre 4 y 8 años está dominando un mercado que se está encogiendo.
+2. Para la categoría de Amas de casa 18+ y Personas 4+ está peleando en un mercado muy polarizado que se está encogiendo.
+
+# V. ¿Por qué se pudo haber dado esta situación?
+
+1. Auge de plataformas con mayor personalización (YouTube, Instagram, TikTok, Netflix, etc...)
+2. Falta de un factor diferencial claro.
+
+
+# VI. ¿Qué se puede indagar ahora?
+
+1. ¿A dónde y porqué se están yendo los espectadores?
+2. ¿Qué determina que alguien vea un tipo de contenido?
+
+
+
+
+
